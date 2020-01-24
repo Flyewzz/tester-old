@@ -1,3 +1,3 @@
-module go.ru/tester
+module github.com/Flyewzz/tester/
 
 go 1.13
