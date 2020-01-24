@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
 type Program struct {
-	Path string
+	Path        string
+	MemoryLimit string
+	DiskLimit   string
+	CpuLimit    string
 }
 
 type Test struct {
@@ -67,14 +70,19 @@ func GetTest(path string) (*Test, error) {
 }
 
 func (p *Program) Run(input string) (string, error) {
-	cmd := exec.Command("bash", "-c", "docker run --rm -i frolvlad/alpine-gxx /bin/sh -c \"g++ -x c++ - && ./a.out\"")
-	file, _ := os.Open(p.Path)
-	cmd.Stdin = file
+
+	// filepath.Dir(p.Path))) - a directory contains the executing program
+	cmd := exec.Command("bash", "-c", fmt.Sprintf("docker run --rm -i --memory=%s --memory-swap %s --cpus=%s "+
+		"-v %s:/program frolvlad/alpine-gxx "+
+		"/bin/sh -c \"g++ program/main.cpp && ./a.out\"",
+		p.MemoryLimit, p.DiskLimit, p.CpuLimit, filepath.Dir(p.Path)))
+	cmd.Stdin = strings.NewReader(input)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Run()
+	cmd.ProcessState.ExitCode()
 	if err != nil {
 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return "", nil
@@ -100,7 +108,10 @@ func main() {
 
 	for _, test := range tests {
 		p := Program{
-			Path: "task/main.cpp",
+			Path:        "/Users/alpha/Desktop/programs/tester/task/main.cpp",
+			MemoryLimit: "30m",
+			DiskLimit:   "31m",
+			CpuLimit:    ".50",
 		}
 		result, err := p.Run(test.Input)
 		if err != nil {
